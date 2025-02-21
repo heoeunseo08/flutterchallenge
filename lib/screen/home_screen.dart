@@ -1,137 +1,303 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:flutterchallenge/widgets/dateListWidget.dart';
 
-class HomeScreen extends StatelessWidget {
-  HomeScreen({super.key});
-  final now = DateTime.now();
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
-  // Example list of events
-  final List<Map<String, dynamic>> events = [
-    {
-      "title": "DESIGN MEETING",
-      "startTime": "11:30",
-      "endTime": "12:20",
-      "participants": ["Alex", "Helena", "Nana"],
-      "color": Color(0xFFFFF176), // Yellow
-    },
-    {
-      "title": "DAILY PROJECT",
-      "startTime": "12:35",
-      "endTime": "14:10",
-      "participants": ["Me", "Richard", "Ciry", "+4"],
-      "color": Color(0xFFBA68C8), // Purple
-    },
-    {
-      "title": "WEEKLY PLANNING",
-      "startTime": "15:00",
-      "endTime": "16:30",
-      "participants": ["Den", "Nana", "Mark"],
-      "color": Color(0xFF81C784), // Green
-    },
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final List<int> timeOptions = [5, 900, 1200, 1500, 1800, 2100];
+  int startTime = 1500;
+  int breakTime = 300;
+  int totalSeconds = 0;
+  bool isRunning = false;
+  bool isBreaking = false;
+  int round = 3;
+  int goal = 11;
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    totalSeconds = startTime;
+  }
+
+  void onTick(Timer timer) {
+    if (totalSeconds == 0) {
+      timer.cancel();
+      setState(() {
+        if (isBreaking) {
+          // 휴식이 끝나면 작업 시간으로 전환하고 타이머 멈춤
+          isBreaking = false;
+          totalSeconds = startTime;
+          isRunning = false;
+        } else {
+          // 작업이 끝나면 휴식 시간으로 전환하고 자동으로 휴식 타이머 시작
+          isBreaking = true;
+          totalSeconds = breakTime;
+          if (round == 3) {
+            round = 0;
+            if (goal == 11) {
+              goal = 0;
+            } else {
+              goal += 1;
+            }
+          } else {
+            round += 1;
+          }
+          // 자동으로 휴식 타이머 시작
+          timer = Timer.periodic(Duration(seconds: 1), onTick);
+        }
+      });
+    } else {
+      setState(() {
+        totalSeconds -= 1;
+      });
+    }
+  }
+
+  void onStartPressed() {
+    if (!isRunning) {
+      if (!isBreaking && totalSeconds == 0) {
+        totalSeconds = startTime;
+      }
+      timer = Timer.periodic(Duration(seconds: 1), onTick);
+      setState(() {
+        isRunning = true;
+      });
+    }
+  }
+
+  void onPausePressed() {
+    if (timer != null && timer!.isActive) {
+      timer!.cancel();
+    }
+    setState(() {
+      isRunning = false;
+    });
+  }
+
+  void onResetPressed() {
+    if (timer != null && timer!.isActive) {
+      timer!.cancel();
+    }
+    setState(() {
+      totalSeconds = startTime;
+      isRunning = false;
+      isBreaking = false; // 상태 초기화
+    });
+  }
+
+  void onTimeSelected(int seconds) {
+    if (timer != null && timer!.isActive) {
+      timer!.cancel();
+    }
+    setState(() {
+      totalSeconds = seconds;
+      isRunning = false;
+      isBreaking = false; // 상태 초기화
+    });
+  }
+
+  String format(int seconds) {
+    var durtion = Duration(seconds: seconds);
+    return durtion.toString().split(".").first.substring(2, 7);
+  }
 
   @override
   Widget build(BuildContext context) {
-    String formattedDate = DateFormat("EEEE, d").format(now);
-
     return Scaffold(
-      backgroundColor: Color(0xff1f1f1f),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Color(0xff1f1f1f),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              padding: EdgeInsets.all(8.0),
-              icon: Container(
-                width: 50,
-                height: 50,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Icon(Icons.person, color: Colors.white, size: 40),
-              ),
-              iconSize: 50,
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: Icon(Icons.add, color: Colors.white),
-              iconSize: 40,
-              onPressed: () {},
-            )
-          ],
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: Text(
+          "POMODORO",
+          style: TextStyle(
+            color: Theme.of(context).cardColor,
+            fontSize: 35,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: 30),
-          Padding(
-            padding: EdgeInsets.only(left: 20),
-            child: Text(
-              formattedDate,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
+          SizedBox(
+            height: 30,
+          ),
+          Flexible(
+            flex: 1,
+            child: Container(
+              alignment: Alignment.center,
+              child: Text(
+                format(totalSeconds),
+                style: TextStyle(
+                  fontSize: 89,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).cardColor,
+                ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: Datelistwidget(),
-          ),
-          SizedBox(
-            height: 20,
-            child: DecoratedBox(decoration: BoxDecoration(color: Colors.white)),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                final event = events[index];
-                return Container(
-                  height: 200, // Fixed height for each event
-                  margin: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: event["color"],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          Flexible(
+            flex: 1,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 40,
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        "${event['startTime']} - ${event['endTime']}",
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        event['title'],
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Spacer(),
-                      Text(
-                        event['participants'].join(", "),
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: 14,
-                        ),
-                      ),
+                      ...timeOptions.map((time) {
+                        bool isSelected = time == totalSeconds;
+                        return GestureDetector(
+                          onTap: () => onTimeSelected(time),
+                          child: AnimatedContainer(
+                            duration:
+                                Duration(milliseconds: 300), // 애니메이션 지속 시간
+                            margin: EdgeInsets.symmetric(horizontal: 10),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Theme.of(context).cardColor
+                                  : Theme.of(context).scaffoldBackgroundColor,
+                              border: Border.all(
+                                color: Theme.of(context).cardColor,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              "${(time / 60).round()}",
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Theme.of(context).scaffoldBackgroundColor
+                                    : Theme.of(context).cardColor,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
-                );
-              },
+                )
+              ],
+            ),
+          ),
+          Flexible(
+            flex: 3,
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    iconSize: 120,
+                    color: Theme.of(context).cardColor,
+                    onPressed: isRunning ? onPausePressed : onStartPressed,
+                    icon: Icon(isRunning
+                        ? Icons.pause_circle_outline
+                        : Icons.play_circle_outline),
+                  ),
+                  if (isRunning) ...[
+                    SizedBox(
+                      width: 20,
+                    ),
+                    IconButton(
+                      onPressed: onResetPressed,
+                      icon: Icon(Icons.restore_outlined),
+                      iconSize: 120,
+                      color: Theme.of(context).cardColor,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          Flexible(
+            flex: 1,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(30),
+                        topRight: Radius.circular(30),
+                      ),
+                      color: Theme.of(context).cardColor,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "ROUND",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .headlineLarge!
+                                    .color,
+                              ),
+                            ),
+                            Text(
+                              '$round/4',
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .headlineLarge!
+                                    .color,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          width: 90,
+                        ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "GOAL",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .headlineLarge!
+                                    .color,
+                              ),
+                            ),
+                            Text(
+                              '$goal/12',
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .headlineLarge!
+                                    .color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
